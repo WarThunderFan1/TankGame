@@ -9,7 +9,7 @@ document.body.appendChild(renderer.domElement);
 const size = 1000;
 const divisions = 100;
 const planeGeometry = new THREE.PlaneGeometry(size, size, divisions, divisions);
-const planeMaterial = new THREE.MeshLambertMaterial({ color: 0x00ff00, wireframe: false });
+const planeMaterial = new THREE.MeshLambertMaterial({ color: 0x00ff00 });
 const plane = new THREE.Mesh(planeGeometry, planeMaterial);
 plane.rotation.x = -Math.PI / 2; // Rotate the plane to be horizontal
 scene.add(plane);
@@ -22,10 +22,10 @@ function generateHills() {
         for (let j = 0; j <= divisions; j++) {
             const height = Math.random() * 10;
             heightData[i][j] = height;
-            plane.geometry.vertices[i * (divisions + 1) + j].z = height;
+            plane.geometry.attributes.position.setZ(i * (divisions + 1) + j, height);
         }
     }
-    plane.geometry.verticesNeedUpdate = true;
+    plane.geometry.computeVertexNormals();
     return heightData;
 }
 const heightData = generateHills();
@@ -81,14 +81,14 @@ scene.add(ambientLight);
 
 // Add a tank (a simple cube for this example)
 const tankGeometry = new THREE.BoxGeometry(1, 1, 2);
-const tankMaterial = new THREE.MeshBasicMaterial({ color: 0x0000ff });
+const tankMaterial = new THREE.MeshLambertMaterial({ color: 0x0000ff });
 const tank = new THREE.Mesh(tankGeometry, tankMaterial);
 tank.position.y = getHeightAt(tank.position.x, tank.position.z, heightData) + 0.5;
 scene.add(tank);
 
 // Camera settings
-camera.position.z = 5;
-camera.position.y = 5;
+camera.position.z = 10;
+camera.position.y = 10;
 camera.lookAt(tank.position);
 
 // Tank movement
