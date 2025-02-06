@@ -22,7 +22,6 @@
         // Load textures
         const loader = new THREE.TextureLoader();
         const terrainTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
-        const trunkTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
         const leavesTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
         const tankTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
 
@@ -54,7 +53,7 @@
         // Add trees
         function addTrees() {
             const trunkGeometry = new THREE.CylinderGeometry(0.5, 0.5, 5, 32);
-            const trunkMaterial = new THREE.MeshLambertMaterial({ map: trunkTexture });
+            const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 }); // Brown color for the trunk
             const leavesGeometry = new THREE.ConeGeometry(2, 5, 32);
             const leavesMaterial = new THREE.MeshLambertMaterial({ map: leavesTexture });
 
