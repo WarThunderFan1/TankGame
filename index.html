@@ -108,8 +108,7 @@
         scene.add(tank);
 
         // Camera settings
-        camera.position.z = 10;
-        camera.position.y = 10;
+        camera.position.set(0, 5, -10);
         camera.lookAt(tank.position);
 
         // Tank movement
@@ -182,6 +181,12 @@
 
             // Adjust tank height based on terrain
             tank.position.y = getHeightAt(tank.position.x, tank.position.z, heightData) + 0.5;
+
+            // Update camera position to follow the tank
+            const relativeCameraOffset = new THREE.Vector3(0, 5, -10);
+            const cameraOffset = relativeCameraOffset.applyMatrix4(tank.matrixWorld);
+            camera.position.lerp(cameraOffset, 0.1);
+            camera.lookAt(tank.position);
 
             renderer.render(scene, camera);
         }
