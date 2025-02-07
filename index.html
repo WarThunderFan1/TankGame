@@ -25,7 +25,7 @@
 </head>
 <body>
     <div id="instructions">
-        Click to play
+        Press any key to start
     </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/controls/PointerLockControls.js"></script>
@@ -42,7 +42,7 @@
         const controls = new THREE.PointerLockControls(camera, document.body);
 
         const instructions = document.getElementById('instructions');
-        instructions.addEventListener('click', () => {
+        document.addEventListener('keydown', () => {
             controls.lock();
         });
 
