@@ -165,7 +165,7 @@
         let pitch = 0;
         let turretYaw = 0;
 
-        const maxTurretRotationSpeed = THREE.Math.degToRad(40); // 40 degrees per second
+        const maxTurretRotationSpeed = THREE.Math.degToRad(40);
 
         document.addEventListener('mousemove', (event) => {
             if (document.pointerLockElement === renderer.domElement) {
@@ -232,6 +232,11 @@
             const turretRotationDifference = THREE.Math.clamp(desiredTurretYaw - turret.rotation.y, -maxRotationThisFrame, maxRotationThisFrame);
             turret.rotation.y += turretRotationDifference;
 
+            // Make the barrel face the crosshair
+            const crosshairWorldPosition = new THREE.Vector3();
+            crosshair.getWorldPosition(crosshairWorldPosition);
+            barrel.lookAt(crosshairWorldPosition);
+
             // Check for collisions
             for (let i = 0; i < collisionObjects.length; i++) {
                 const obj = collisionObjects[i];
@@ -239,12 +244,10 @@
                 let hit = false;
 
                 if (obj.geometry instanceof THREE.CylinderGeometry) {
-                    // Check collision with tree hitbox (slightly larger than the trunk)
                     const treeHitBox = new THREE.Box3().setFromObject(obj);
                     treeHitBox.expandByScalar(0.1);
                     hit = treeHitBox.containsPoint(tank.position);
                 } else if (obj.geometry instanceof THREE.SphereGeometry) {
-                    // Check collision with boulder hitbox
                     const boulderHitBox = new THREE.Sphere(obj.position, 2);
                     hit = boulderHitBox.containsPoint(tank.position);
                 }
@@ -274,13 +277,11 @@
             const cameraOffset = relativeCameraOffset.applyMatrix4(tank.matrixWorld);
 
             if (isZoomed) {
-                // Zoom the camera directly above the tank
                 camera.position.set(tank.position.x, tank.position.y + 1.5, tank.position.z);
                 camera.lookAt(crosshair.position);
             } else {
                 camera.position.lerp(cameraOffset, 0.1);
 
-                // Apply yaw and pitch to camera position
                 const offsetX = 5 * Math.sin(yaw) * Math.cos(pitch);
                 const offsetY = 5 * Math.sin(pitch);
                 const offsetZ = 5 * Math.cos(yaw) * Math.cos(pitch);
@@ -294,12 +295,10 @@
                 camera.lookAt(tank.position);
             }
 
-            // Prevent the camera from going below the ground level
             if (camera.position.y < 0.1) {
                 camera.position.y = 0.1;
             }
 
-            // Update crosshair position to be on the opposite side of the tank from the camera
             const crosshairOffsetX = -5 * Math.sin(yaw) * Math.cos(pitch);
             const crosshairOffsetY = -5 * Math.sin(pitch);
             const crosshairOffsetZ = -5 * Math.cos(yaw) * Math.cos(pitch);
@@ -328,7 +327,7 @@
                     tree.position.z += fallSpeed * Math.sin(tree.userData.fallDirection);
                 }
 
-                const fallDuration = 20 * 1000;
+                const fallDuration = 20 * 1000; // 20 seconds
                 if (timeFallen > fallDuration) {
                     scene.remove(tree);
                     fallenTrees.splice(i, 1);
