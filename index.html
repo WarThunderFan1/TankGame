@@ -23,7 +23,7 @@
     </style>
 </head>
 <body>
-    <div id="overlay">Click to Play</div>
+    <div id="overlay">Press C to play</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/loaders/TextureLoader.js"></script>
     <script>
@@ -162,6 +162,9 @@
                 case 'd':
                     rotateRight = false;
                     break;
+                case 'c':
+                    startGame();
+                    break;
             }
         }
 
@@ -194,9 +197,7 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
-        // Start the game on click
-        document.body.addEventListener('click', startGame);
-
+        // Start the game when 'C' key is pressed
         function startGame() {
             document.getElementById('overlay').style.display = 'none';
             animate();
