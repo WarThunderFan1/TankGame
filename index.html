@@ -43,15 +43,17 @@
         // Generate hills by modifying plane vertices
         function generateHills() {
             const heightData = [];
+            const position = plane.geometry.attributes.position;
             for (let i = 0; i <= divisions; i++) {
                 heightData[i] = [];
                 for (let j = 0; j <= divisions; j++) {
                     const height = Math.random() * 3; // Reduced the maximum height to 3
                     heightData[i][j] = height;
-                    plane.geometry.attributes.position.setZ(i * (divisions + 1) + j, height);
+                    const index = i * (divisions + 1) + j;
+                    position.setZ(index, height);
                 }
             }
-            plane.geometry.attributes.position.needsUpdate = true;
+            position.needsUpdate = true;
             plane.geometry.computeVertexNormals();
             return heightData;
         }
