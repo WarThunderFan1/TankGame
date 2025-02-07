@@ -45,6 +45,7 @@
                     plane.geometry.attributes.position.setZ(i * (divisions + 1) + j, height);
                 }
             }
+            plane.geometry.attributes.position.needsUpdate = true;
             plane.geometry.computeVertexNormals();
             return heightData;
         }
