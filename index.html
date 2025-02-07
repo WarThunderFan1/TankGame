@@ -40,7 +40,7 @@
             for (let i = 0; i <= divisions; i++) {
                 heightData[i] = [];
                 for (let j = 0; j <= divisions; j++) {
-                    const height = Math.random() * 10;
+                    const height = Math.random() * 3; // Reduced the maximum height to 3
                     heightData[i][j] = height;
                     plane.geometry.attributes.position.setZ(i * (divisions + 1) + j, height);
                 }
