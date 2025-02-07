@@ -6,9 +6,27 @@
     <style>
         body { margin: 0; }
         canvas { display: block; }
+        #instructions {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 1.5em;
+            text-align: center;
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
+    <div id="instructions">
+        Click to play
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/controls/PointerLockControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/loaders/TextureLoader.js"></script>
@@ -22,6 +40,20 @@
 
         // Pointer Lock Controls
         const controls = new THREE.PointerLockControls(camera, document.body);
+
+        const instructions = document.getElementById('instructions');
+        instructions.addEventListener('click', () => {
+            controls.lock();
+        });
+
+        controls.addEventListener('lock', () => {
+            instructions.style.display = 'none';
+        });
+
+        controls.addEventListener('unlock', () => {
+            instructions.style.display = 'flex';
+        });
+
         scene.add(controls.getObject());
 
         // Load textures
@@ -42,25 +74,19 @@
         // Generate hills by modifying plane vertices
         function generateHills() {
             const heightData = [];
-            const position = plane.geometry.attributes.position;
             for (let i = 0; i <= divisions; i++) {
                 heightData[i] = [];
                 for (let j = 0; j <= divisions; j++) {
                     const height = Math.random() * 3; // Reduced the maximum height to 3
                     heightData[i][j] = height;
-                    const index = i * (divisions + 1) + j;
-                    position.setZ(index, height);
+                    plane.geometry.attributes.position.setZ(i * (divisions + 1) + j, height);
                 }
             }
-            position.needsUpdate = true;
+            plane.geometry.attributes.position.needsUpdate = true;
             plane.geometry.computeVertexNormals();
             return heightData;
         }
         const heightData = generateHills();
-
-        // Add GridHelper
-        const gridHelper = new THREE.GridHelper(size, divisions);
-        scene.add(gridHelper);
 
         // Add trees
         function addTrees() {
@@ -115,24 +141,11 @@
         const tankGeometry = new THREE.BoxGeometry(1, 1, 2);
         const tankMaterial = new THREE.MeshLambertMaterial({ map: tankTexture });
         const tank = new THREE.Mesh(tankGeometry, tankMaterial);
-        tank.position.set(0, getHeightAt(0, 0, heightData) + 0.5, 0);
+        tank.position.y = getHeightAt(tank.position.x, tank.position.z, heightData) + 0.5;
         scene.add(tank);
-
-        // Add a basic box for debugging
-        const boxGeometry = new THREE.BoxGeometry(1, 1, 1);
-        const boxMaterial = new THREE.MeshLambertMaterial({ color: 0xff0000 });
-        const box = new THREE.Mesh(boxGeometry, boxMaterial);
-        box.position.set(2, 1, 2);
-        scene.add(box);
-
-        // Add a directional light helper
-        const lightHelper = new THREE.DirectionalLightHelper(light, 5);
-        scene.add(lightHelper);
 
         // Camera settings
         const cameraOffset = new THREE.Vector3(0, 5, -10);
-        camera.position.set(0, 10, 10);
-        camera.lookAt(0, 0, 0);
 
         // Tank movement
         let moveForward = false;
@@ -143,10 +156,10 @@
         function handleKeyDown(event) {
             switch (event.key) {
                 case 'w':
-                    moveForward = true;
+                    moveBackward = true;
                     break;
                 case 's':
-                    moveBackward = true;
+                    moveForward = true;
                     break;
                 case 'a':
                     rotateLeft = true;
@@ -160,10 +173,10 @@
         function handleKeyUp(event) {
             switch (event.key) {
                 case 'w':
-                    moveForward = false;
+                    moveBackward = false;
                     break;
                 case 's':
-                    moveBackward = false;
+                    moveForward = false;
                     break;
                 case 'a':
                     rotateLeft = false;
