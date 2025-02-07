@@ -1,276 +1,251 @@
 <!DOCTYPE html>
-<html>
+<html lang="en">
 <head>
     <meta charset="UTF-8">
-    <title>Three.js Terrain with Tank</title>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>3D Tank Game</title>
     <style>
         body { margin: 0; }
-        canvas { display: block; cursor: pointer; }
-        #overlay {
-            position: absolute;
-            top: 0;
-            left: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            justify-content: center;
-            align-items: center;
-            background: rgba(0, 0, 0, 0.5);
-            color: white;
-            font-size: 24px;
-            z-index: 10;
-        }
+        canvas { display: block; }
     </style>
 </head>
 <body>
-    <div id="overlay">Press c to play</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script type="module">
-        import { OrbitControls } from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/jsm/controls/OrbitControls.js';
-        import { TextureLoader } from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/jsm/loaders/TextureLoader.js';
-
-        // Basic setup
+    <script>
+        // Scene, camera, renderer
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Orbit Controls
-        const controls = new OrbitControls(camera, renderer.domElement);
-        controls.enableDamping = true; // Enable damping (inertia)
-        controls.dampingFactor = 0.05; // Damping factor
-        controls.target.set(0, 0.5, 0); // Camera looks at the tank
-        controls.enablePan = false; // Disable panning
+        // Terrain
+        const terrainGeometry = new THREE.PlaneGeometry(50, 50);
+        const terrainMaterial = new THREE.MeshBasicMaterial({ color: 0xc5ff00 });
+        const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+        terrain.rotation.x = -Math.PI / 2;
+        scene.add(terrain);
 
-        // Load textures
-        const loader = new TextureLoader();
-        const terrainTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
-        const leavesTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
-        const tankTexture = loader.load('https://threejs.org/examples/textures/crate.gif');
-
-        // Add a ground plane with height data
-        const size = 100;
-        const divisions = 10;
-        const planeGeometry = new THREE.PlaneGeometry(size, size, divisions, divisions);
-        const planeMaterial = new THREE.MeshLambertMaterial({ map: terrainTexture });
-        const plane = new THREE.Mesh(planeGeometry, planeMaterial);
-        plane.rotation.x = -Math.PI / 2; // Rotate the plane to be horizontal
-        scene.add(plane);
-
-        // Generate hills by modifying plane vertices
-        function generateHills() {
-            const heightData = [];
-            for (let i = 0; i <= divisions; i++) {
-                heightData[i] = [];
-                for (let j = 0; j <= divisions; j++) {
-                    const height = Math.random() * 3; // Reduced the maximum height to 3
-                    heightData[i][j] = height;
-                    plane.geometry.attributes.position.setZ(i * (divisions + 1) + j, height);
-                }
-            }
-            plane.geometry.attributes.position.needsUpdate = true;
-            plane.geometry.computeVertexNormals();
-            return heightData;
+        // Function to get a random position within the map with a buffer zone
+        function getRandomPosition(range, buffer) {
+            return Math.random() * (range - 2 * buffer) - (range / 2 - buffer);
         }
-        const heightData = generateHills();
 
-        // Add trees
-        function addTrees() {
-            const trunkGeometry = new THREE.CylinderGeometry(0.5, 0.5, 5, 32);
-            const trunkMaterial = new THREE.MeshLambertMaterial({ color: 0x8B4513 }); // Brown color for the trunk
-            const leavesGeometry = new THREE.ConeGeometry(2, 5, 32);
-            const leavesMaterial = new THREE.MeshLambertMaterial({ map: leavesTexture });
+        // Collision objects array
+        const collisionObjects = [];
 
-            for (let i = 0; i < 10; i++) {
-                const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-                const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
-                
-                const x = Math.random() * size - size / 2;
-                const z = Math.random() * size - size / 2;
-                const y = getHeightAt(x, z, heightData);
+        // Trees
+        function createTree(x, z) {
+            const trunkGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1);
+            const trunkMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
+            const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
+            trunk.position.set(x, 0.5, z);
 
-                trunk.position.set(x, y + 2.5, z);
-                leaves.position.set(x, y + 5, z);
+            const leavesGeometry = new THREE.SphereGeometry(0.5);
+            const leavesMaterial = new THREE.MeshBasicMaterial({ color: 0xfcdf23 });
+            const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
+            leaves.position.set(0, 0.8, 0);
 
-                scene.add(trunk);
-                scene.add(leaves);
-            }
+            trunk.add(leaves);
+            trunk.userData = { fallen: false, fallStartTime: null, barrier: true, rotationAngle: 0, fallDirection: 0 };
+
+            scene.add(trunk);
+
+            // Add trunk to collision objects
+            collisionObjects.push(trunk);
         }
-        addTrees();
 
-        // Add rocks
-        function addRocks() {
-            const rockGeometry = new THREE.DodecahedronGeometry(2);
-            const rockMaterial = new THREE.MeshLambertMaterial({ color: 0x808080 });
-
-            for (let i = 0; i < 5; i++) {
-                const rock = new THREE.Mesh(rockGeometry, rockMaterial);
-                const x = Math.random() * size - size / 2;
-                const z = Math.random() * size - size / 2;
-                const y = getHeightAt(x, z, heightData);
-
-                rock.position.set(x, y + 1, z);
-                scene.add(rock);
-            }
+        // Create 29 trees at random positions with a buffer zone of 5 units
+        for (let i = 0; i < 29; i++) {
+            createTree(getRandomPosition(50, 5), getRandomPosition(50, 5));
         }
-        addRocks();
 
-        // Lighting
-        const light = new THREE.DirectionalLight(0xffffff, 1);
-        light.position.set(5, 10, 7.5);
-        scene.add(light);
+        // Boulders
+        function createBoulder(x, z) {
+            const boulderGeometry = new THREE.SphereGeometry(0.5);
+            const boulderMaterial = new THREE.MeshBasicMaterial({ color: 0x808080 });
+            const boulder = new THREE.Mesh(boulderGeometry, boulderMaterial);
+            boulder.position.set(x, 0.25, z);
+            boulder.userData = { barrier: true };
+            scene.add(boulder);
 
-        const ambientLight = new THREE.AmbientLight(0x404040);
-        scene.add(ambientLight);
+            // Add boulder to collision objects
+            collisionObjects.push(boulder);
+        }
 
-        // Add a tank
-        const tankGeometry = new THREE.BoxGeometry(1, 1, 2);
-        const tankMaterial = new THREE.MeshLambertMaterial({ map: tankTexture });
+        // Create 19 boulders at random positions with a buffer zone of 5 units
+        for (let i = 0; i < 19; i++) {
+            createBoulder(getRandomPosition(50, 5), getRandomPosition(50, 5));
+        }
+
+        // Tank
+        const tankGeometry = new THREE.BoxGeometry(1, 0.5, 2);
+        const tankMaterial = new THREE.MeshBasicMaterial({ color: 0x5b9326 });
         const tank = new THREE.Mesh(tankGeometry, tankMaterial);
-        tank.position.y = getHeightAt(tank.position.x, tank.position.z, heightData) + 0.5;
+        tank.position.set(0, 0.25, 0);
         scene.add(tank);
 
-        // Camera settings
-        const cameraOffset = new THREE.Vector3(0, 5, -10);
+        // Initial camera position
+        camera.position.set(0, 5, -10);
+        camera.lookAt(tank.position);
 
-        // Tank movement
-        let moveForward = false;
-        let moveBackward = false;
-        let rotateLeft = false;
-        let rotateRight = false;
-        let startGameFlag = false;
+        // Controls
+        const keys = {
+            w: false,
+            s: false,
+            a: false,
+            d: false,
+        };
 
-        function handleKeyDown(event) {
-            switch (event.key.toLowerCase()) { // Convert the key to lowercase
-                case 'w':
-                    moveForward = true;
-                    break;
-                case 's':
-                    moveBackward = true;
-                    break;
-                case 'a':
-                    rotateLeft = true;
-                    break;
-                case 'c':
-                    startGameFlag = true;
-                    break;
-                case 'd':
-                    rotateRight = true;
-                    break;
+        document.addEventListener('keydown', (event) => {
+            if (event.key.toLowerCase() in keys) {
+                keys[event.key.toLowerCase()] = true;
             }
-        }
+        });
 
-        function handleKeyUp(event) {
-            switch (event.key.toLowerCase()) { // Convert the key to lowercase
-                case 'w':
-                    moveForward = false;
-                    break;
-                case 's':
-                    moveBackward = false;
-                    break;
-                case 'a':
-                    rotateLeft = false;
-                    break;
-                case 'c':
-                    if (startGameFlag) {
-                        startGame();
+        document.addEventListener('keyup', (event) => {
+            if (event.key.toLowerCase() in keys) {
+                keys[event.key.toLowerCase()] = false;
+            }
+        });
+
+        document.addEventListener('click', () => {
+            if (document.pointerLockElement !== renderer.domElement) {
+                renderer.domElement.requestPointerLock();
+            }
+        });
+
+        // Mouse movement handler
+        let yaw = 0;
+        let pitch = 0;
+
+        document.addEventListener('mousemove', (event) => {
+            if (document.pointerLockElement === renderer.domElement) {
+                const movementX = event.movementX || 0;
+                const movementY = event.movementY || 0;
+
+                yaw -= movementX * 0.002;
+                pitch += movementY * 0.002; // Inverted the vertical movement
+
+                pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+            }
+        });
+
+        let fallenTrees = [];
+
+        let tankSpeed = 0;
+        const maxSpeedForward = 0.2;
+        const maxSpeedBackward = 0.1; // Half the max speed of moving forward
+        const accelerationForward = maxSpeedForward / 4 / 60; // 4 seconds to reach max speed at 60fps
+        const accelerationBackward = maxSpeedBackward / 2 / 60; // 2 seconds to reach max speed at 60fps
+        const decelerationForward = maxSpeedForward / 2 / 60; // 2 seconds to stop from max speed at 60fps
+        const decelerationBackward = maxSpeedBackward / 1 / 60; // 1 second to stop from max speed at 60fps
+
+        function updateTank() {
+            const turnSpeed = 0.05;
+
+            let tankMoved = false;
+            let previousPosition = tank.position.clone();
+
+            if (keys.w) {
+                tankSpeed = Math.min(tankSpeed + accelerationForward, maxSpeedForward);
+                tankMoved = true;
+            } else if (keys.s) {
+                tankSpeed = Math.max(tankSpeed - accelerationBackward, -maxSpeedBackward);
+                tankMoved = true;
+            } else {
+                if (tankSpeed > 0) {
+                    tankSpeed = Math.max(tankSpeed - decelerationForward, 0);
+                } else {
+                    tankSpeed = Math.min(tankSpeed + decelerationBackward, 0);
+                }
+            }
+
+            tank.translateZ(tankSpeed);
+
+            if (keys.a) {
+                tank.rotation.y += turnSpeed;
+            }
+            if (keys.d) {
+                tank.rotation.y -= turnSpeed;
+            }
+
+            // Check for collisions
+            for (let i = 0; i < collisionObjects.length; i++) {
+                const obj = collisionObjects[i];
+                const distance = tank.position.distanceTo(obj.position);
+                if (distance < 1) {
+                    if (obj.geometry instanceof THREE.CylinderGeometry && !obj.userData.fallen) {
+                        obj.userData.fallen = true;
+                        obj.userData.fallStartTime = Date.now();
+                        obj.userData.fallDirection = Math.atan2(
+                            obj.position.z - tank.position.z,
+                            obj.position.x - tank.position.x
+                        );
+                        fallenTrees.push(obj);
+                        setTimeout(() => {
+                            obj.userData.barrier = false;
+                        }, 3000); // Remove barrier after 3 seconds
+                    } else if (obj.userData.barrier) {
+                        tank.position.copy(previousPosition);
+                        tankSpeed = 0;
                     }
                     break;
-                case 'd':
-                    rotateRight = false;
-                    break;
+                }
+            }
+
+            // Update camera position to constantly be behind the tank
+            const relativeCameraOffset = new THREE.Vector3(0, 3, -5); // Shortened distance
+            const cameraOffset = relativeCameraOffset.applyMatrix4(tank.matrixWorld);
+
+            camera.position.lerp(cameraOffset, 0.1);
+
+            // Apply yaw and pitch to camera position
+            const offsetX = 5 * Math.sin(yaw) * Math.cos(pitch);
+            const offsetY = 5 * Math.sin(pitch);
+            const offsetZ = 5 * Math.cos(yaw) * Math.cos(pitch);
+
+            camera.position.set(
+                tank.position.x + offsetX,
+                tank.position.y + 3 + offsetY,
+                tank.position.z + offsetZ
+            );
+
+            camera.lookAt(tank.position);
+        }
+
+        function updateTrees() {
+            const fallSpeed = 0.01;
+            const maxRotation = Math.PI / 2 - THREE.Math.degToRad(4); // 86 degrees
+
+            for (let i = fallenTrees.length - 1; i >= 0; i--) {
+                const tree = fallenTrees[i];
+                const timeFallen = Date.now() - tree.userData.fallStartTime;
+
+                if (tree.userData.rotationAngle < maxRotation) {
+                    tree.rotation.z -= fallSpeed;
+                    tree.userData.rotationAngle += fallSpeed;
+                    tree.position.x += fallSpeed * Math.cos(tree.userData.fallDirection);
+                    tree.position.z += fallSpeed * Math.sin(tree.userData.fallDirection);
+                }
+
+                const fallDuration = 20 * 1000; // 20 seconds
+                if (timeFallen > fallDuration) {
+                    scene.remove(tree);
+                    fallenTrees.splice(i, 1);
+                }
             }
         }
 
-        document.addEventListener('keydown', handleKeyDown);
-        document.addEventListener('keyup', handleKeyUp);
-
-        // Get height at a specific position
-        function getHeightAt(x, z, heightData) {
-            const halfSize = size / 2;
-            const i = Math.floor((x + halfSize) / size * divisions);
-            const j = Math.floor((z + halfSize) / size * divisions);
-            if (i < 0 || i >= heightData.length || j < 0 || j >= heightData[i].length) {
-                return 0; // Return a default height if out of bounds
-            }
-            return heightData[i][j];
-        }
-
-        // Check if the tank is outside the map boundaries
-        function checkOutOfBounds() {
-            const halfSize = size / 2;
-            if (tank.position.x < -halfSize || tank.position.x > halfSize || tank.position.z < -halfSize || tank.position.z > halfSize) {
-                tank.position.set(0, getHeightAt(0, 0, heightData) + 0.5, 0);
-            }
-        }
-
-        // Handle window resize
-        window.addEventListener('resize', () => {
-            camera.aspect = window.innerWidth / window.innerHeight;
-            camera.updateProjectionMatrix();
-            renderer.setSize(window.innerWidth, window.innerHeight);
-        });
-
-        // Pointer lock setup
-        renderer.domElement.addEventListener('click', () => {
-            renderer.domElement.requestPointerLock();
-        });
-
-        document.addEventListener('pointerlockchange', () => {
-            if (document.pointerLockElement === renderer.domElement) {
-                console.log('Pointer locked');
-                document.addEventListener('mousemove', updateCameraRotation, false);
-            } else {
-                console.log('Pointer unlocked');
-                document.removeEventListener('mousemove', updateCameraRotation, false);
-            }
-        });
-
-        function updateCameraRotation(event) {
-            const movementX = event.movementX || 0;
-            const movementY = event.movementY || 0;
-
-            // Adjust the controls rotation based on mouse movement
-            controls.rotateLeft(movementX * 0.002);
-            controls.rotateUp(movementY * 0.002);
-        }
-
-        // Start the game when 'c' key is pressed
-        function startGame() {
-            document.getElementById('overlay').style.display = 'none';
-            animate();
-        }
-
-        // Game loop
+        // Render loop
         function animate() {
             requestAnimationFrame(animate);
-
-            if (moveForward) {
-                tank.translateZ(-0.1);
-            }
-            if (moveBackward) {
-                tank.translateZ(0.1);
-            }
-            if (rotateLeft) {
-                tank.rotation.y += 0.05;
-            }
-            if (rotateRight) {
-                tank.rotation.y -= 0.05;
-            }
-
-            // Adjust tank height based on terrain
-            tank.position.y = getHeightAt(tank.position.x, tank.position.z, heightData) + 0.5;
-
-            // Check if the tank is out of bounds
-            checkOutOfBounds();
-
-            // Update camera position to follow the tank
-            controls.target.set(tank.position.x, tank.position.y, tank.position.z);
-            controls.update();
-
+            updateTank();
+            updateTrees();
             renderer.render(scene, camera);
         }
+
+        animate();
     </script>
 </body>
 </html>
