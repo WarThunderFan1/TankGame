@@ -38,7 +38,7 @@
         const loader = new THREE.TextureLoader();
         const terrainTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
         const leavesTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
-        const tankTexture = loader.load('https://threejs.org/examples/textures/crate.gif');  // Different texture for the tank
+        const tankTexture = loader.load('https://threejs.org/examples/textures/crate.gif');
 
         // Add a ground plane with height data
         const size = 100;
@@ -196,6 +196,30 @@
             camera.updateProjectionMatrix();
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
+
+        // Pointer lock setup
+        renderer.domElement.addEventListener('click', () => {
+            renderer.domElement.requestPointerLock();
+        });
+
+        document.addEventListener('pointerlockchange', () => {
+            if (document.pointerLockElement === renderer.domElement) {
+                console.log('Pointer locked');
+                document.addEventListener('mousemove', updateCameraRotation, false);
+            } else {
+                console.log('Pointer unlocked');
+                document.removeEventListener('mousemove', updateCameraRotation, false);
+            }
+        });
+
+        function updateCameraRotation(event) {
+            const movementX = event.movementX || 0;
+            const movementY = event.movementY || 0;
+
+            // Adjust the camera rotation based on mouse movement
+            tank.rotation.y -= movementX * 0.002;
+            camera.rotation.x -= movementY * 0.002;
+        }
 
         // Start the game when 'C' key is pressed
         function startGame() {
