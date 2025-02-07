@@ -6,29 +6,10 @@
     <style>
         body { margin: 0; }
         canvas { display: block; }
-        #instructions {
-            position: absolute;
-            top: 0;
-            width: 100%;
-            height: 100%;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            background-color: rgba(0, 0, 0, 0.75);
-            color: white;
-            font-family: Arial, sans-serif;
-            font-size: 1.5em;
-            text-align: center;
-            z-index: 1;
-        }
     </style>
 </head>
 <body>
-    <div id="instructions">
-        Click to play
-    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/controls/PointerLockControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/loaders/TextureLoader.js"></script>
     <script>
         // Basic setup
@@ -38,29 +19,11 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Pointer Lock Controls
-        const controls = new THREE.PointerLockControls(camera, document.body);
-
-        const instructions = document.getElementById('instructions');
-        instructions.addEventListener('click', () => {
-            controls.lock();
-        });
-
-        controls.addEventListener('lock', () => {
-            instructions.style.display = 'none';
-        });
-
-        controls.addEventListener('unlock', () => {
-            instructions.style.display = 'flex';
-        });
-
-        scene.add(controls.getObject());
-
         // Load textures
         const loader = new THREE.TextureLoader();
         const terrainTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
         const leavesTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
-        const tankTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
+        const tankTexture = loader.load('https://threejs.org/examples/textures/crate.gif');  // Different texture for the tank
 
         // Add a ground plane with height data
         const size = 100;
@@ -195,8 +158,8 @@
             const halfSize = size / 2;
             const i = Math.floor((x + halfSize) / size * divisions);
             const j = Math.floor((z + halfSize) / size * divisions);
-            if (i < 0 || i > divisions || j < 0 || j > divisions) {
-                return 0;
+            if (i < 0 || i >= heightData.length || j < 0 || j >= heightData[i].length) {
+                return 0; // Return a default height if out of bounds
             }
             return heightData[i][j];
         }
@@ -209,6 +172,13 @@
             }
         }
 
+        // Handle window resize
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
+
         // Game loop
         function animate() {
             requestAnimationFrame(animate);
@@ -218,3 +188,29 @@
             }
             if (moveBackward) {
                 tank.translateZ(0.1);
+            }
+            if (rotateLeft) {
+                tank.rotation.y += 0.05;
+            }
+            if (rotateRight) {
+                tank.rotation.y -= 0.05;
+            }
+
+            // Adjust tank height based on terrain
+            tank.position.y = getHeightAt(tank.position.x, tank.position.z, heightData) + 0.5;
+
+            // Check if the tank is out of bounds
+            checkOutOfBounds();
+
+            // Update camera position to follow the tank
+            const relativeCameraOffset = cameraOffset.clone().applyMatrix4(tank.matrixWorld);
+            camera.position.lerp(relativeCameraOffset, 0.1);
+            camera.lookAt(tank.position);
+
+            renderer.render(scene, camera);
+        }
+
+        animate();
+    </script>
+</body>
+</html>
