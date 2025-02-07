@@ -124,6 +124,7 @@
 
         // Camera settings
         const cameraOffset = new THREE.Vector3(0, 5, -10);
+        const cameraRotation = new THREE.Euler(0, 0, 0, 'YXZ');
 
         // Tank movement
         let moveForward = false;
@@ -217,8 +218,9 @@
             const movementY = event.movementY || 0;
 
             // Adjust the camera rotation based on mouse movement
-            tank.rotation.y -= movementX * 0.002;
-            camera.rotation.x -= movementY * 0.002;
+            cameraRotation.y -= movementX * 0.002;
+            cameraRotation.x -= movementY * 0.002;
+            cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraRotation.x));
         }
 
         // Start the game when 'C' key is pressed
@@ -253,6 +255,7 @@
             // Update camera position to follow the tank
             const relativeCameraOffset = cameraOffset.clone().applyMatrix4(tank.matrixWorld);
             camera.position.lerp(relativeCameraOffset, 0.1);
+            camera.setRotationFromEuler(cameraRotation);
             camera.lookAt(tank.position);
 
             renderer.render(scene, camera);
