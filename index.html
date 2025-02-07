@@ -19,12 +19,29 @@
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
 
-        // Terrain
-        const terrainGeometry = new THREE.PlaneGeometry(50, 50);
-        const terrainMaterial = new THREE.MeshBasicMaterial({ color: 0xc5ff00 });
-        const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
-        terrain.rotation.x = -Math.PI / 2;
-        scene.add(terrain);
+        // Load grass texture
+        const loader = new THREE.TextureLoader();
+        const grassTexture = loader.load('https://encrypted-tbn0.gstatic.com/images?q=tbn:ANd9GcQahima-BH9iR02g2tp5dm41Tv9R7M7ibWNEw&s');
+        grassTexture.wrapS = THREE.RepeatWrapping;
+        grassTexture.wrapT = THREE.RepeatWrapping;
+        grassTexture.repeat.set(5, 5);
+
+        // Function to generate terrain
+        function generateTerrain(offsetX, offsetZ) {
+            const terrainGeometry = new THREE.PlaneGeometry(50, 50);
+            const terrainMaterial = new THREE.MeshBasicMaterial({ map: grassTexture });
+            const terrain = new THREE.Mesh(terrainGeometry, terrainMaterial);
+            terrain.rotation.x = -Math.PI / 2;
+            terrain.position.set(offsetX, 0, offsetZ);
+            scene.add(terrain);
+        }
+
+        // Generate a 3x3 grid of terrain
+        for (let x = -1; x <= 1; x++) {
+            for (let z = -1; z <= 1; z++) {
+                generateTerrain(x * 50, z * 50);
+            }
+        }
 
         // Function to get a random position within the map with a buffer zone
         function getRandomPosition(range, buffer) {
@@ -55,9 +72,9 @@
             collisionObjects.push(trunk);
         }
 
-        // Create 29 trees at random positions with a buffer zone of 5 units
-        for (let i = 0; i < 29; i++) {
-            createTree(getRandomPosition(50, 5), getRandomPosition(50, 5));
+        // Create 29 trees at random positions with a buffer zone of 5 units within the 3x3 grid
+        for (let i = 0; i < 29 * 9; i++) { // 29 trees per grid cell, 9 grid cells
+            createTree(getRandomPosition(150, 5) + 0, getRandomPosition(150, 5) + 0); // Adjusted offset
         }
 
         // Boulders
@@ -73,9 +90,9 @@
             collisionObjects.push(boulder);
         }
 
-        // Create 19 boulders at random positions with a buffer zone of 5 units
-        for (let i = 0; i < 19; i++) {
-            createBoulder(getRandomPosition(50, 5), getRandomPosition(50, 5));
+        // Create 19 boulders at random positions with a buffer zone of 5 units within the 3x3 grid
+        for (let i = 0; i < 19 * 9; i++) { // 19 boulders per grid cell, 9 grid cells
+            createBoulder(getRandomPosition(150, 5) + 0, getRandomPosition(150, 5) + 0); // Adjusted offset
         }
 
         // Tank
@@ -84,6 +101,12 @@
         const tank = new THREE.Mesh(tankGeometry, tankMaterial);
         tank.position.set(0, 0.25, 0);
         scene.add(tank);
+
+        // Crosshair
+        const crosshairGeometry = new THREE.RingGeometry(0.15, 0.25, 32); // Increased size
+        const crosshairMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const crosshair = new THREE.Mesh(crosshairGeometry, crosshairMaterial);
+        scene.add(crosshair);
 
         // Initial camera position
         camera.position.set(0, 5, -10);
@@ -95,17 +118,24 @@
             s: false,
             a: false,
             d: false,
+            shift: false // Added shift key
         };
 
         document.addEventListener('keydown', (event) => {
             if (event.key.toLowerCase() in keys) {
                 keys[event.key.toLowerCase()] = true;
             }
+            if (event.key === 'Shift') {
+                keys.shift = true;
+            }
         });
 
         document.addEventListener('keyup', (event) => {
             if (event.key.toLowerCase() in keys) {
                 keys[event.key.toLowerCase()] = false;
+            }
+            if (event.key === 'Shift') {
+                keys.shift = false;
             }
         });
 
@@ -198,20 +228,39 @@
             const relativeCameraOffset = new THREE.Vector3(0, 3, -5); // Shortened distance
             const cameraOffset = relativeCameraOffset.applyMatrix4(tank.matrixWorld);
 
-            camera.position.lerp(cameraOffset, 0.1);
+            if (keys.shift) {
+                // Zoom the camera directly above the tank, a bit higher than before
+                camera.position.set(tank.position.x, tank.position.y + 1.5, tank.position.z);
+                camera.lookAt(crosshair.position); // Make the camera look at the crosshair
+            } else {
+                camera.position.lerp(cameraOffset, 0.1);
 
-            // Apply yaw and pitch to camera position
-            const offsetX = 5 * Math.sin(yaw) * Math.cos(pitch);
-            const offsetY = 5 * Math.sin(pitch);
-            const offsetZ = 5 * Math.cos(yaw) * Math.cos(pitch);
+                // Apply yaw and pitch to camera position
+                const offsetX = 5 * Math.sin(yaw) * Math.cos(pitch);
+                const offsetY = 5 * Math.sin(pitch);
+                const offsetZ = 5 * Math.cos(yaw) * Math.cos(pitch);
 
-            camera.position.set(
-                tank.position.x + offsetX,
-                tank.position.y + 3 + offsetY,
-                tank.position.z + offsetZ
+                camera.position.set(
+                    tank.position.x + offsetX,
+                    tank.position.y + 3 + offsetY,
+                    tank.position.z + offsetZ
+                );
+
+                camera.lookAt(tank.position);
+            }
+
+            // Update crosshair position to be on the opposite side of the tank from the camera
+            const crosshairOffsetX = -5 * Math.sin(yaw) * Math.cos(pitch);
+            const crosshairOffsetY = -5 * Math.sin(pitch);
+            const crosshairOffsetZ = -5 * Math.cos(yaw) * Math.cos(pitch);
+
+            crosshair.position.set(
+                tank.position.x + crosshairOffsetX,
+                tank.position.y + 3 + crosshairOffsetY,
+                tank.position.z + crosshairOffsetZ
             );
 
-            camera.lookAt(tank.position);
+            crosshair.lookAt(tank.position);
         }
 
         function updateTrees() {
