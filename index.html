@@ -23,11 +23,12 @@
     </style>
 </head>
 <body>
-    <div id="overlay">Press C to play</div>
+    <div id="overlay">Press c to play</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/loaders/TextureLoader.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/controls/OrbitControls.js"></script>
-    <script>
+    <script type="module">
+        import { OrbitControls } from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/jsm/controls/OrbitControls.js';
+        import { TextureLoader } from 'https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/examples/jsm/loaders/TextureLoader.js';
+
         // Basic setup
         const scene = new THREE.Scene();
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
@@ -36,14 +37,14 @@
         document.body.appendChild(renderer.domElement);
 
         // Orbit Controls
-        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        const controls = new OrbitControls(camera, renderer.domElement);
         controls.enableDamping = true; // Enable damping (inertia)
         controls.dampingFactor = 0.05; // Damping factor
         controls.target.set(0, 0.5, 0); // Camera looks at the tank
         controls.enablePan = false; // Disable panning
 
         // Load textures
-        const loader = new THREE.TextureLoader();
+        const loader = new TextureLoader();
         const terrainTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
         const leavesTexture = loader.load('https://threejs.org/examples/textures/terrain/grasslight-big.jpg');
         const tankTexture = loader.load('https://threejs.org/examples/textures/crate.gif');
@@ -138,9 +139,10 @@
         let moveBackward = false;
         let rotateLeft = false;
         let rotateRight = false;
+        let startGameFlag = false;
 
         function handleKeyDown(event) {
-            switch (event.key) {
+            switch (event.key.toLowerCase()) { // Convert the key to lowercase
                 case 'w':
                     moveForward = true;
                     break;
@@ -150,6 +152,12 @@
                 case 'a':
                     rotateLeft = true;
                     break;
+                case 'c':
+                    if (!startGameFlag) {
+                        startGame();
+                        startGameFlag = true;
+                    }
+                    break;
                 case 'd':
                     rotateRight = true;
                     break;
@@ -157,7 +165,7 @@
         }
 
         function handleKeyUp(event) {
-            switch (event.key) {
+            switch (event.key.toLowerCase()) { // Convert the key to lowercase
                 case 'w':
                     moveForward = false;
                     break;
@@ -167,11 +175,11 @@
                 case 'a':
                     rotateLeft = false;
                     break;
+                case 'c':
+                    // No action needed on key up for 'c'
+                    break;
                 case 'd':
                     rotateRight = false;
-                    break;
-                case 'c':
-                    startGame();
                     break;
             }
         }
@@ -229,7 +237,7 @@
             controls.rotateUp(movementY * 0.002);
         }
 
-        // Start the game when 'C' key is pressed
+        // Start the game when 'c' key is pressed
         function startGame() {
             document.getElementById('overlay').style.display = 'none';
             animate();
