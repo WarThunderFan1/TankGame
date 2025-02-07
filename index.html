@@ -153,10 +153,7 @@
                     rotateLeft = true;
                     break;
                 case 'c':
-                    if (!startGameFlag) {
-                        startGame();
-                        startGameFlag = true;
-                    }
+                    startGameFlag = true;
                     break;
                 case 'd':
                     rotateRight = true;
@@ -176,7 +173,9 @@
                     rotateLeft = false;
                     break;
                 case 'c':
-                    // No action needed on key up for 'c'
+                    if (startGameFlag) {
+                        startGame();
+                    }
                     break;
                 case 'd':
                     rotateRight = false;
