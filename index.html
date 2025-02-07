@@ -53,15 +53,15 @@
 
         // Trees
         function createTree(x, z) {
-            const trunkGeometry = new THREE.CylinderGeometry(0.1, 0.1, 1);
+            const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2); // Doubled size
             const trunkMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
             const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-            trunk.position.set(x, 0.5, z);
+            trunk.position.set(x, 1, z); // Adjusted position to match size
 
-            const leavesGeometry = new THREE.SphereGeometry(0.5);
+            const leavesGeometry = new THREE.SphereGeometry(1); // Doubled size
             const leavesMaterial = new THREE.MeshBasicMaterial({ color: 0xfcdf23 });
             const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
-            leaves.position.set(0, 0.8, 0);
+            leaves.position.set(0, 1.6, 0); // Adjusted position to match size
 
             trunk.add(leaves);
             trunk.userData = { fallen: false, fallStartTime: null, barrier: true, rotationAngle: 0, fallDirection: 0 };
@@ -69,6 +69,7 @@
             scene.add(trunk);
 
             // Add trunk to collision objects
+            trunk.userData.hitBox = new THREE.Box3().setFromObject(trunk);
             collisionObjects.push(trunk);
         }
 
@@ -79,14 +80,15 @@
 
         // Boulders
         function createBoulder(x, z) {
-            const boulderGeometry = new THREE.SphereGeometry(0.5);
+            const boulderGeometry = new THREE.SphereGeometry(1); // Doubled size
             const boulderMaterial = new THREE.MeshBasicMaterial({ color: 0x808080 });
             const boulder = new THREE.Mesh(boulderGeometry, boulderMaterial);
-            boulder.position.set(x, 0.25, z);
+            boulder.position.set(x, 0.5, z); // Adjusted position to match size
             boulder.userData = { barrier: true };
             scene.add(boulder);
 
             // Add boulder to collision objects
+            boulder.userData.hitBox = new THREE.Sphere(boulder.position, 1); // Doubled hitbox size
             collisionObjects.push(boulder);
         }
 
@@ -101,6 +103,13 @@
         const tank = new THREE.Mesh(tankGeometry, tankMaterial);
         tank.position.set(0, 0.25, 0);
         scene.add(tank);
+
+        // Turret
+        const turretGeometry = new THREE.BoxGeometry(0.5, 0.25, 1);
+        const turretMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
+        const turret = new THREE.Mesh(turretGeometry, turretMaterial);
+        turret.position.set(0, 0.38, 0); // Adjusted y position
+        tank.add(turret);
 
         // Crosshair
         const crosshairGeometry = new THREE.RingGeometry(0.15, 0.25, 32); // Increased size
@@ -117,25 +126,23 @@
             w: false,
             s: false,
             a: false,
-            d: false,
-            shift: false // Added shift key
+            d: false
         };
+
+        let isZoomed = false;
 
         document.addEventListener('keydown', (event) => {
             if (event.key.toLowerCase() in keys) {
                 keys[event.key.toLowerCase()] = true;
             }
             if (event.key === 'Shift') {
-                keys.shift = true;
+                isZoomed = !isZoomed; // Toggle zoom state
             }
         });
 
         document.addEventListener('keyup', (event) => {
             if (event.key.toLowerCase() in keys) {
                 keys[event.key.toLowerCase()] = false;
-            }
-            if (event.key === 'Shift') {
-                keys.shift = false;
             }
         });
 
@@ -148,6 +155,9 @@
         // Mouse movement handler
         let yaw = 0;
         let pitch = 0;
+        let turretYaw = 0;
+
+        const maxTurretRotationSpeed = THREE.Math.degToRad(22); // 22 degrees per second
 
         document.addEventListener('mousemove', (event) => {
             if (document.pointerLockElement === renderer.domElement) {
@@ -158,6 +168,8 @@
                 pitch += movementY * 0.002; // Inverted the vertical movement
 
                 pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
+                
+                turretYaw -= movementX * 0.002; // Adjust turret rotation based on mouse movement
             }
         });
 
@@ -170,6 +182,8 @@
         const accelerationBackward = maxSpeedBackward / 2 / 60; // 2 seconds to reach max speed at 60fps
         const decelerationForward = maxSpeedForward / 2 / 60; // 2 seconds to stop from max speed at 60fps
         const decelerationBackward = maxSpeedBackward / 1 / 60; // 1 second to stop from max speed at 60fps
+
+        let previousTime = performance.now();
 
         function updateTank() {
             const turnSpeed = 0.05;
@@ -200,11 +214,34 @@
                 tank.rotation.y -= turnSpeed;
             }
 
+            // Update turret rotation relative to the tank
+            const now = performance.now();
+            const deltaTime = (now - previousTime) / 1000; // in seconds
+            previousTime = now;
+
+            const desiredTurretYaw = turretYaw - tank.rotation.y;
+            const maxRotationThisFrame = maxTurretRotationSpeed * deltaTime;
+            const turretRotationDifference = THREE.Math.clamp(desiredTurretYaw - turret.rotation.y, -maxRotationThisFrame, maxRotationThisFrame);
+            turret.rotation.y += turretRotationDifference;
+
             // Check for collisions
             for (let i = 0; i < collisionObjects.length; i++) {
                 const obj = collisionObjects[i];
                 const distance = tank.position.distanceTo(obj.position);
-                if (distance < 1) {
+                let hit = false;
+
+                if (obj.geometry instanceof THREE.CylinderGeometry) {
+                    // Check collision with tree hitbox (slightly larger than the trunk)
+                    const treeHitBox = new THREE.Box3().setFromObject(obj);
+                    treeHitBox.expandByScalar(0.1); // Slightly larger hitbox
+                    hit = treeHitBox.containsPoint(tank.position);
+                } else if (obj.geometry instanceof THREE.SphereGeometry) {
+                    // Check collision with boulder hitbox
+                    const boulderHitBox = new THREE.Sphere(obj.position, 2); // Doubled hitbox size
+                    hit = boulderHitBox.containsPoint(tank.position);
+                }
+
+                if (hit) {
                     if (obj.geometry instanceof THREE.CylinderGeometry && !obj.userData.fallen) {
                         obj.userData.fallen = true;
                         obj.userData.fallStartTime = Date.now();
@@ -228,7 +265,7 @@
             const relativeCameraOffset = new THREE.Vector3(0, 3, -5); // Shortened distance
             const cameraOffset = relativeCameraOffset.applyMatrix4(tank.matrixWorld);
 
-            if (keys.shift) {
+            if (isZoomed) {
                 // Zoom the camera directly above the tank, a bit higher than before
                 camera.position.set(tank.position.x, tank.position.y + 1.5, tank.position.z);
                 camera.lookAt(crosshair.position); // Make the camera look at the crosshair
@@ -247,6 +284,11 @@
                 );
 
                 camera.lookAt(tank.position);
+            }
+
+            // Prevent the camera from going below the ground level
+            if (camera.position.y < 0.1) {
+                camera.position.y = 0.1;
             }
 
             // Update crosshair position to be on the opposite side of the tank from the camera
