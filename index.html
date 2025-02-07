@@ -6,10 +6,29 @@
     <style>
         body { margin: 0; }
         canvas { display: block; }
+        #instructions {
+            position: absolute;
+            top: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            background-color: rgba(0, 0, 0, 0.75);
+            color: white;
+            font-family: Arial, sans-serif;
+            font-size: 1.5em;
+            text-align: center;
+            z-index: 1;
+        }
     </style>
 </head>
 <body>
+    <div id="instructions">
+        Click to play
+    </div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/controls/PointerLockControls.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/loaders/TextureLoader.js"></script>
     <script>
         // Basic setup
@@ -18,6 +37,24 @@
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
+
+        // Pointer Lock Controls
+        const controls = new THREE.PointerLockControls(camera, document.body);
+
+        const instructions = document.getElementById('instructions');
+        instructions.addEventListener('click', () => {
+            controls.lock();
+        });
+
+        controls.addEventListener('lock', () => {
+            instructions.style.display = 'none';
+        });
+
+        controls.addEventListener('unlock', () => {
+            instructions.style.display = 'flex';
+        });
+
+        scene.add(controls.getObject());
 
         // Load textures
         const loader = new THREE.TextureLoader();
