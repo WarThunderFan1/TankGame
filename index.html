@@ -122,10 +122,10 @@
         function handleKeyDown(event) {
             switch (event.key) {
                 case 'w':
-                    moveBackward = true;
+                    moveForward = true;
                     break;
                 case 's':
-                    moveForward = true;
+                    moveBackward = true;
                     break;
                 case 'a':
                     rotateLeft = true;
@@ -139,10 +139,10 @@
         function handleKeyUp(event) {
             switch (event.key) {
                 case 'w':
-                    moveBackward = false;
+                    moveForward = false;
                     break;
                 case 's':
-                    moveForward = false;
+                    moveBackward = false;
                     break;
                 case 'a':
                     rotateLeft = false;
