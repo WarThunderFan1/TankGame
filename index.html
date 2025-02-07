@@ -26,6 +26,7 @@
     <div id="overlay">Press C to play</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/loaders/TextureLoader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/controls/OrbitControls.js"></script>
     <script>
         // Basic setup
         const scene = new THREE.Scene();
@@ -33,6 +34,13 @@
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
         document.body.appendChild(renderer.domElement);
+
+        // Orbit Controls
+        const controls = new THREE.OrbitControls(camera, renderer.domElement);
+        controls.enableDamping = true; // Enable damping (inertia)
+        controls.dampingFactor = 0.05; // Damping factor
+        controls.target.set(0, 0.5, 0); // Camera looks at the tank
+        controls.enablePan = false; // Disable panning
 
         // Load textures
         const loader = new THREE.TextureLoader();
@@ -124,7 +132,6 @@
 
         // Camera settings
         const cameraOffset = new THREE.Vector3(0, 5, -10);
-        const cameraRotation = new THREE.Euler(0, 0, 0, 'YXZ');
 
         // Tank movement
         let moveForward = false;
@@ -217,10 +224,9 @@
             const movementX = event.movementX || 0;
             const movementY = event.movementY || 0;
 
-            // Adjust the camera rotation based on mouse movement
-            cameraRotation.y -= movementX * 0.002;
-            cameraRotation.x -= movementY * 0.002;
-            cameraRotation.x = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, cameraRotation.x));
+            // Adjust the controls rotation based on mouse movement
+            controls.rotateLeft(movementX * 0.002);
+            controls.rotateUp(movementY * 0.002);
         }
 
         // Start the game when 'C' key is pressed
@@ -253,10 +259,8 @@
             checkOutOfBounds();
 
             // Update camera position to follow the tank
-            const relativeCameraOffset = cameraOffset.clone().applyMatrix4(tank.matrixWorld);
-            camera.position.lerp(relativeCameraOffset, 0.1);
-            camera.setRotationFromEuler(cameraRotation);
-            camera.lookAt(tank.position);
+            controls.target.set(tank.position.x, tank.position.y, tank.position.z);
+            controls.update();
 
             renderer.render(scene, camera);
         }
