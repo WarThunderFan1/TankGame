@@ -11,6 +11,7 @@
 <body>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/loaders/TextureLoader.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/perlin-noise/1.1.6/perlin-noise.min.js"></script>
     <script>
         // Basic setup
         const scene = new THREE.Scene();
@@ -27,20 +28,22 @@
 
         // Add a ground plane with height data
         const size = 100;
-        const divisions = 10;
+        const divisions = 100;
         const planeGeometry = new THREE.PlaneGeometry(size, size, divisions, divisions);
         const planeMaterial = new THREE.MeshLambertMaterial({ map: terrainTexture });
         const plane = new THREE.Mesh(planeGeometry, planeMaterial);
         plane.rotation.x = -Math.PI / 2; // Rotate the plane to be horizontal
         scene.add(plane);
 
-        // Generate hills by modifying plane vertices
+        // Generate hills using Perlin noise
         function generateHills() {
             const heightData = [];
+            const scale = 0.1;
+
             for (let i = 0; i <= divisions; i++) {
                 heightData[i] = [];
                 for (let j = 0; j <= divisions; j++) {
-                    const height = Math.random() * 10;
+                    const height = noise.perlin2(i * scale, j * scale) * 10; // Perlin noise height
                     heightData[i][j] = height;
                     plane.geometry.attributes.position.setZ(i * (divisions + 1) + j, height);
                 }
