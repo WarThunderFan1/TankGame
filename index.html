@@ -5,10 +5,25 @@
     <title>Three.js Terrain with Tank</title>
     <style>
         body { margin: 0; }
-        canvas { display: block; }
+        canvas { display: block; cursor: pointer; }
+        #overlay {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            background: rgba(0, 0, 0, 0.5);
+            color: white;
+            font-size: 24px;
+            z-index: 10;
+        }
     </style>
 </head>
 <body>
+    <div id="overlay">Click to Play</div>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/jsm/loaders/TextureLoader.js"></script>
     <script>
@@ -179,6 +194,14 @@
             renderer.setSize(window.innerWidth, window.innerHeight);
         });
 
+        // Start the game on click
+        document.body.addEventListener('click', startGame);
+
+        function startGame() {
+            document.getElementById('overlay').style.display = 'none';
+            animate();
+        }
+
         // Game loop
         function animate() {
             requestAnimationFrame(animate);
@@ -209,8 +232,6 @@
 
             renderer.render(scene, camera);
         }
-
-        animate();
     </script>
 </body>
 </html>
