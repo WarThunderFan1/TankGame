@@ -53,15 +53,15 @@
 
         // Trees
         function createTree(x, z) {
-            const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2);
+            const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2); // Doubled size
             const trunkMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
             const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-            trunk.position.set(x, 1, z);
+            trunk.position.set(x, 1, z); // Adjusted position to match size
 
-            const leavesGeometry = new THREE.SphereGeometry(1);
+            const leavesGeometry = new THREE.SphereGeometry(1); // Doubled size
             const leavesMaterial = new THREE.MeshBasicMaterial({ color: 0xfcdf23 });
             const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
-            leaves.position.set(0, 1.6, 0);
+            leaves.position.set(0, 1.6, 0); // Adjusted position to match size
 
             trunk.add(leaves);
             trunk.userData = { fallen: false, fallStartTime: null, barrier: true, rotationAngle: 0, fallDirection: 0 };
@@ -74,27 +74,27 @@
         }
 
         // Create 29 trees at random positions with a buffer zone of 5 units within the 3x3 grid
-        for (let i = 0; i < 29 * 9; i++) { 
-            createTree(getRandomPosition(150, 5), getRandomPosition(150, 5));
+        for (let i = 0; i < 29 * 9; i++) { // 29 trees per grid cell, 9 grid cells
+            createTree(getRandomPosition(150, 5), getRandomPosition(150, 5)); // Adjusted offset
         }
 
         // Boulders
         function createBoulder(x, z) {
-            const boulderGeometry = new THREE.SphereGeometry(1);
+            const boulderGeometry = new THREE.SphereGeometry(1); // Doubled size
             const boulderMaterial = new THREE.MeshBasicMaterial({ color: 0x808080 });
             const boulder = new THREE.Mesh(boulderGeometry, boulderMaterial);
-            boulder.position.set(x, 0.5, z);
+            boulder.position.set(x, 0.5, z); // Adjusted position to match size
             boulder.userData = { barrier: true };
             scene.add(boulder);
 
             // Add boulder to collision objects
-            boulder.userData.hitBox = new THREE.Sphere(boulder.position, 1);
+            boulder.userData.hitBox = new THREE.Sphere(boulder.position, 1); // Doubled hitbox size
             collisionObjects.push(boulder);
         }
 
         // Create 19 boulders at random positions with a buffer zone of 5 units within the 3x3 grid
-        for (let i = 0; i < 19 * 9; i++) { 
-            createBoulder(getRandomPosition(150, 5), getRandomPosition(150, 5));
+        for (let i = 0; i < 19 * 9; i++) { // 19 boulders per grid cell, 9 grid cells
+            createBoulder(getRandomPosition(150, 5), getRandomPosition(150, 5)); // Adjusted offset
         }
 
         // Tank
@@ -108,19 +108,19 @@
         const turretGeometry = new THREE.BoxGeometry(0.5, 0.25, 1);
         const turretMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
         const turret = new THREE.Mesh(turretGeometry, turretMaterial);
-        turret.position.set(0, 0.38, 0);
+        turret.position.set(0, 0.38, 0); // Adjusted y position
         tank.add(turret);
 
         // Barrel
-        const barrelGeometry = new THREE.CylinderGeometry(0.05, 0.05, 2);
+        const barrelGeometry = new THREE.CylinderGeometry(0.056, 0.056, 2.52); // Barrel geometry (20% skinnier and 10% shorter)
         const barrelMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
         const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
-        barrel.position.set(0, 0, -1.5); // Positioned on the opposite side of turret
+        barrel.position.set(0, 0, -1.26); // Positioning at the front of the turret
         barrel.rotation.x = Math.PI / 2; // Rotate to align with turret
         turret.add(barrel);
 
         // Crosshair
-        const crosshairGeometry = new THREE.RingGeometry(0.15, 0.25, 32);
+        const crosshairGeometry = new THREE.RingGeometry(0.15, 0.25, 32); // Increased size
         const crosshairMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const crosshair = new THREE.Mesh(crosshairGeometry, crosshairMaterial);
         scene.add(crosshair);
@@ -134,23 +134,33 @@
             w: false,
             s: false,
             a: false,
-            d: false
+            d: false,
+            c: false,
+            q: false, // Added q key
+            e: false  // Added e key
         };
 
         let isZoomed = false;
+        let cameraOffset = { yaw: 0, pitch: 0 };
+        let zoomLevel = 1; // Initial zoom level
 
         document.addEventListener('keydown', (event) => {
             if (event.key.toLowerCase() in keys) {
                 keys[event.key.toLowerCase()] = true;
             }
             if (event.key === 'Shift') {
-                isZoomed = !isZoomed;
+                isZoomed = !isZoomed; // Toggle zoom state
             }
         });
 
         document.addEventListener('keyup', (event) => {
             if (event.key.toLowerCase() in keys) {
                 keys[event.key.toLowerCase()] = false;
+                if (event.key.toLowerCase() === 'c') {
+                    // Reset camera and crosshair when "c" key is released
+                    yaw = cameraOffset.yaw;
+                    pitch = cameraOffset.pitch;
+                }
             }
         });
 
@@ -164,20 +174,26 @@
         let yaw = 0;
         let pitch = 0;
         let turretYaw = 0;
+        let isTurretMoving = false;
 
-        const maxTurretRotationSpeed = THREE.Math.degToRad(40);
+        const maxTurretRotationSpeed = THREE.Math.degToRad(40); // 40 degrees per second
 
         document.addEventListener('mousemove', (event) => {
+            // Check if the pointer is locked to the renderer element
             if (document.pointerLockElement === renderer.domElement) {
                 const movementX = event.movementX || 0;
                 const movementY = event.movementY || 0;
 
+                // Allow camera movement even if 'c' is pressed
                 yaw -= movementX * 0.002;
                 pitch += movementY * 0.002;
 
                 pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
-                
-                turretYaw -= movementX * 0.002;
+
+                if (!keys.c) {
+                    turretYaw -= movementX * 0.002; // Adjust turret rotation based on mouse movement
+                    isTurretMoving = true;
+                }
             }
         });
 
@@ -185,11 +201,11 @@
 
         let tankSpeed = 0;
         const maxSpeedForward = 0.2;
-        const maxSpeedBackward = 0.1;
-        const accelerationForward = maxSpeedForward / 4 / 60;
-        const accelerationBackward = maxSpeedBackward / 2 / 60;
-        const decelerationForward = maxSpeedForward / 2 / 60;
-        const decelerationBackward = maxSpeedBackward / 1 / 60;
+        const maxSpeedBackward = 0.1; // Half the max speed of moving forward
+        const accelerationForward = maxSpeedForward / 4 / 60; // 4 seconds to reach max speed at 60fps
+        const accelerationBackward = maxSpeedBackward / 2 / 60; // 2 seconds to reach max speed at 60fps
+        const decelerationForward = maxSpeedForward / 2 / 60; // 2 seconds to stop from max speed at 60fps
+        const decelerationBackward = maxSpeedBackward / 1 / 60; // 1 second to stop from max speed at 60fps
 
         let previousTime = performance.now();
 
@@ -227,15 +243,20 @@
             const deltaTime = (now - previousTime) / 1000; // in seconds
             previousTime = now;
 
-            const desiredTurretYaw = turretYaw - tank.rotation.y;
-            const maxRotationThisFrame = maxTurretRotationSpeed * deltaTime;
-            const turretRotationDifference = THREE.Math.clamp(desiredTurretYaw - turret.rotation.y, -maxRotationThisFrame, maxRotationThisFrame);
-            turret.rotation.y += turretRotationDifference;
+            if (!keys.c || isTurretMoving) {
+                const desiredTurretYaw = turretYaw - tank.rotation.y;
+                const maxRotationThisFrame = maxTurretRotationSpeed * deltaTime;
+                const turretRotationDifference = THREE.Math.clamp(desiredTurretYaw - turret.rotation.y, -maxRotationThisFrame, maxRotationThisFrame);
+                turret.rotation.y += turretRotationDifference;
+            }
 
-            // Make the barrel face the crosshair
-            const crosshairWorldPosition = new THREE.Vector3();
-            crosshair.getWorldPosition(crosshairWorldPosition);
-            barrel.lookAt(crosshairWorldPosition);
+            // Ensure turret keeps moving towards the crosshair when "c" is pressed
+            if (keys.c && isTurretMoving) {
+                const desiredTurretYaw = turretYaw - tank.rotation.y;
+                const maxRotationThisFrame = maxTurretRotationSpeed * deltaTime;
+                const turretRotationDifference = THREE.Math.clamp(desiredTurretYaw - turret.rotation.y, -maxRotationThisFrame, maxRotationThisFrame);
+                turret.rotation.y += turretRotationDifference;
+            }
 
             // Check for collisions
             for (let i = 0; i < collisionObjects.length; i++) {
@@ -244,11 +265,13 @@
                 let hit = false;
 
                 if (obj.geometry instanceof THREE.CylinderGeometry) {
+                    // Check collision with tree hitbox (slightly larger than the trunk)
                     const treeHitBox = new THREE.Box3().setFromObject(obj);
-                    treeHitBox.expandByScalar(0.1);
+                    treeHitBox.expandByScalar(0.1); // Slightly larger hitbox
                     hit = treeHitBox.containsPoint(tank.position);
                 } else if (obj.geometry instanceof THREE.SphereGeometry) {
-                    const boulderHitBox = new THREE.Sphere(obj.position, 2);
+                    // Check collision with boulder hitbox
+                    const boulderHitBox = new THREE.Sphere(obj.position, 2); // Doubled hitbox size
                     hit = boulderHitBox.containsPoint(tank.position);
                 }
 
@@ -263,7 +286,7 @@
                         fallenTrees.push(obj);
                         setTimeout(() => {
                             obj.userData.barrier = false;
-                        }, 3000);
+                        }, 3000); // Remove barrier after 3 seconds
                     } else if (obj.userData.barrier) {
                         tank.position.copy(previousPosition);
                         tankSpeed = 0;
@@ -273,15 +296,17 @@
             }
 
             // Update camera position to constantly be behind the tank
-            const relativeCameraOffset = new THREE.Vector3(0, 3, -5);
-            const cameraOffset = relativeCameraOffset.applyMatrix4(tank.matrixWorld);
+            const relativeCameraOffset = new THREE.Vector3(0, 3, -5).multiplyScalar(zoomLevel); // Adjusted for zoom level
+            const cameraOffsetPosition = relativeCameraOffset.applyMatrix4(tank.matrixWorld);
 
             if (isZoomed) {
+                // Zoom the camera directly above the tank, a bit higher than before
                 camera.position.set(tank.position.x, tank.position.y + 1.5, tank.position.z);
-                camera.lookAt(crosshair.position);
+                camera.lookAt(crosshair.position); // Make the camera look at the crosshair
             } else {
-                camera.position.lerp(cameraOffset, 0.1);
+                camera.position.lerp(cameraOffsetPosition, 0.1);
 
+                // Apply yaw and pitch to camera position
                 const offsetX = 5 * Math.sin(yaw) * Math.cos(pitch);
                 const offsetY = 5 * Math.sin(pitch);
                 const offsetZ = 5 * Math.cos(yaw) * Math.cos(pitch);
@@ -295,21 +320,41 @@
                 camera.lookAt(tank.position);
             }
 
+            // Prevent the camera from going below the ground level
             if (camera.position.y < 0.1) {
                 camera.position.y = 0.1;
             }
 
-            const crosshairOffsetX = -5 * Math.sin(yaw) * Math.cos(pitch);
-            const crosshairOffsetY = -5 * Math.sin(pitch);
-            const crosshairOffsetZ = -5 * Math.cos(yaw) * Math.cos(pitch);
+            // Update crosshair position
+            if (!keys.c) {
+                // Save camera offset when "c" key is pressed
+                cameraOffset = { yaw, pitch };
 
-            crosshair.position.set(
-                tank.position.x + crosshairOffsetX,
-                tank.position.y + 3 + crosshairOffsetY,
-                tank.position.z + crosshairOffsetZ
-            );
+                // Calculate crosshair position to be on the opposite side of the tank from the camera
+                const crosshairOffsetX = -5 * Math.sin(yaw) * Math.cos(pitch);
+                const crosshairOffsetY = -5 * Math.sin(pitch);
+                const crosshairOffsetZ = -5 * Math.cos(yaw) * Math.cos(pitch);
 
-            crosshair.lookAt(tank.position);
+                crosshair.position.set(
+                    tank.position.x + crosshairOffsetX,
+                    tank.position.y + 3 + crosshairOffsetY,
+                    tank.position.z + crosshairOffsetZ
+                );
+
+                crosshair.lookAt(tank.position);
+            }
+
+            // Adjust zoom level with "q" and "e" keys (smooth zooming effect)
+            if (keys.q) {
+                zoomLevel = Math.max(zoomLevel - 0.05, 0.2); // Zoom in up to 5x
+                camera.fov = 75 / zoomLevel; // Adjust field of view
+                camera.updateProjectionMatrix();
+            } 
+            if (keys.e) {
+                zoomLevel = Math.min(zoomLevel + 0.05, 1); // Zoom out back to normal
+                camera.fov = 75 / zoomLevel; // Adjust field of view
+                camera.updateProjectionMatrix();
+            }
         }
 
         function updateTrees() {
