@@ -14,6 +14,7 @@
     <script>
         // Scene, camera, renderer
         const scene = new THREE.Scene();
+        scene.background = new THREE.Color(0xa3dad0); // Set the sky color to #a3dad0
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
         const renderer = new THREE.WebGLRenderer();
         renderer.setSize(window.innerWidth, window.innerHeight);
@@ -123,6 +124,23 @@
         const crosshairGeometry = new THREE.RingGeometry(0.15, 0.25, 32); // Increased size
         const crosshairMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
         const crosshair = new THREE.Mesh(crosshairGeometry, crosshairMaterial);
+        
+        // Add red lines to the crosshair
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+        const lineGeometry1 = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(-0.25, 0, 0),
+            new THREE.Vector3(0.25, 0, 0)
+        ]);
+        const line1 = new THREE.Line(lineGeometry1, lineMaterial);
+        const lineGeometry2 = new THREE.BufferGeometry().setFromPoints([
+            new THREE.Vector3(0, -0.25, 0),
+            new THREE.Vector3(0, 0.25, 0)
+        ]);
+        const line2 = new THREE.Line(lineGeometry2, lineMaterial);
+
+        crosshair.add(line1);
+        crosshair.add(line2);
+
         scene.add(crosshair);
 
         // Initial camera position
@@ -223,7 +241,7 @@
                 tankMoved = true;
             } else {
                 if (tankSpeed > 0) {
-                    tankSpeed = Math.max(tankSpeed - decelerationForward, 0);
+                    tankSpeed = Math.max(tSpeed - decelerationForward, 0);
                 } else {
                     tankSpeed = Math.min(tankSpeed + decelerationBackward, 0);
                 }
