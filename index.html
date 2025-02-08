@@ -241,7 +241,7 @@
                 tankMoved = true;
             } else {
                 if (tankSpeed > 0) {
-                    tankSpeed = Math.max(tSpeed - decelerationForward, 0);
+                    tankSpeed = Math.max(tankSpeed - decelerationForward, 0);
                 } else {
                     tankSpeed = Math.min(tankSpeed + decelerationBackward, 0);
                 }
