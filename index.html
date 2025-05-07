@@ -129,6 +129,17 @@
         const crosshair = new THREE.Mesh(crosshairGeometry, crosshairMaterial);
         crosshair.position.z = -5;
 
+        // Add a second ring
+        const outerRingGeometry = new THREE.RingGeometry(0.3, 0.4, 32);  // Larger radius for the outer ring
+        const outerRingMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, depthTest: false });
+        const outerRing = new THREE.Mesh(outerRingGeometry, outerRingMaterial);
+        crosshair.add(outerRing); // Add the outer ring to the crosshair
+        outerRing.visible = true; // Make sure the outer ring is visible initially
+        let outerRingRotation = 0; // Keep track of the outer ring's rotation
+        let timeSinceLastShot = 0;
+        let shotFired = false; // Add a flag to track if a shot has been fired
+        let reloadProgress = 0; // Track the reload progress, from 0 to 1
+
         // Add red lines to the crosshair
         const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, depthTest: false });
         const lineGeometry1 = new THREE.BufferGeometry().setFromPoints([
@@ -363,7 +374,6 @@
                     tank.position.y + 3 + crosshairOffsetY,
                     tank.position.z + crosshairOffsetZ
                 );
-
                 crosshair.lookAt(tank.position);
                 if (keys.shift) {
                     crosshairWorldPosition.setFromMatrixPosition(crosshair.matrixWorld);
@@ -374,6 +384,11 @@
                 crosshair.position.add(crosshairWorldPosition);
                 crosshair.lookAt(tank.position);
             }
+
+            // Rotate the outer ring based on camera yaw and pitch - removed dependency on camera
+            outerRingRotation =  -Math.PI / 2; // Fixed starting rotation
+            outerRing.rotation.z = outerRingRotation;
+
 
             if (keys.q) {
                 zoomLevel = Math.max(zoomLevel - 0.05, 0.2);
@@ -390,6 +405,10 @@
                 if (canShoot) {
                     shootProjectile();
                     canShoot = false;
+                    timeSinceLastShot = performance.now(); // Store the time of the shot
+                    reloadProgress = 0; // Reset reload progress
+                    shotFired = true;
+                    outerRing.visible = true; // Ensure the outer ring is visible when the shot is fired
                     setTimeout(() => {
                         canShoot = true;
                     }, reloadTime);
@@ -550,6 +569,35 @@
             updateTrees();
             updateProjectiles();
             updateExplosions(); // Update explosions
+
+            // Update outer ring scale and rotation for reload animation
+            if (shotFired) {
+                const timeSinceShot = performance.now() - timeSinceLastShot;
+                reloadProgress= Math.min(1, timeSinceShot / reloadTime); // Calculate reload progress (0 to 1)
+
+                // Calculate the angle based on the reload progress.  Go from 0 to 2PI (full circle)
+                const fillAngle = reloadProgress * Math.PI * 2;
+
+                // Calculate the starting angle to be at the top ( -Math.PI / 2) - This is the key change
+                const startAngle = -Math.PI / 2;
+
+                // Create a new geometry for the visible part of the ring.
+                const segments = 32; // Number of segments, same as original ring.
+                const innerRadius = 0.3;
+                const outerRadius = 0.4;
+                const thetaStart = startAngle;
+                const thetaLength = fillAngle;
+
+                const newOuterRingGeometry = new THREE.RingGeometry(innerRadius, outerRadius, segments, undefined, thetaStart, thetaLength);
+                outerRing.geometry.dispose(); // Dispose old geometry
+                outerRing.geometry = newOuterRingGeometry; // Set the new geometry
+            }
+            else{
+                const fullCircleGeometry = new THREE.RingGeometry(0.3, 0.4, 32);
+                outerRing.geometry.dispose();
+                outerRing.geometry = fullCircleGeometry;
+            }
+
             renderer.render(scene, camera);
         }
 
