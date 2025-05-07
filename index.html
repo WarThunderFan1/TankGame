@@ -14,10 +14,11 @@
     <script>
         // Scene, camera, renderer
         const scene = new THREE.Scene();
-        scene.background = new THREE.Color(0xa3dad0); // Set the sky color to #a3dad0
+        scene.background = new THREE.Color(0xa3dad0);
         const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
-        const renderer = new THREE.WebGLRenderer();
-        renderer.setSize(window.innerWidth, window.innerHeight);
+        const renderer = new THREE.WebGLRenderer(); // Declare renderer here
+        renderer.setPixelRatio( window.devicePixelRatio );
+        renderer.setSize( window.innerWidth, window.innerHeight );
         document.body.appendChild(renderer.domElement);
 
         // Load grass texture
@@ -54,48 +55,49 @@
 
         // Trees
         function createTree(x, z) {
-            const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.2, 2); // Doubled size
+            const trunkHeight = Math.random() * 3 + 1; // Random height between 1 and 4
+            const trunkGeometry = new THREE.CylinderGeometry(0.2, 0.2, trunkHeight);
             const trunkMaterial = new THREE.MeshBasicMaterial({ color: 0x8B4513 });
             const trunk = new THREE.Mesh(trunkGeometry, trunkMaterial);
-            trunk.position.set(x, 1, z); // Adjusted position to match size
+            trunk.position.set(x, trunkHeight / 2, z); // Position in the middle of the trunk
 
-            const leavesGeometry = new THREE.SphereGeometry(1); // Doubled size
+            const leavesGeometry = new THREE.SphereGeometry(1);
             const leavesMaterial = new THREE.MeshBasicMaterial({ color: 0xfcdf23 });
             const leaves = new THREE.Mesh(leavesGeometry, leavesMaterial);
-            leaves.position.set(0, 1.6, 0); // Adjusted position to match size
+            leaves.position.set(0, trunkHeight * 0.7, 0); // Adjusted leaves position
 
             trunk.add(leaves);
-            trunk.userData = { fallen: false, fallStartTime: null, barrier: true, rotationAngle: 0, fallDirection: 0 };
+            trunk.userData = { fallen: false, fallStartTime: null, barrier: true, rotationAngle: 0, fallDirection: 0, hitBox: new THREE.Box3().setFromObject(trunk) }; // Add hitBox to userData
+            collisionObjects.push(trunk); // Add to collision objects
 
             scene.add(trunk);
-
-            // Add trunk to collision objects
-            trunk.userData.hitBox = new THREE.Box3().setFromObject(trunk);
-            collisionObjects.push(trunk);
+            return trunk;
         }
 
         // Create 29 trees at random positions with a buffer zone of 5 units within the 3x3 grid
-        for (let i = 0; i < 29 * 9; i++) { // 29 trees per grid cell, 9 grid cells
-            createTree(getRandomPosition(150, 5), getRandomPosition(150, 5)); // Adjusted offset
+        const trees = [];
+        for (let i = 0; i < 29 * 9; i++) {
+            const tree = createTree(getRandomPosition(150, 5), getRandomPosition(150, 5));
+            trees.push(tree);
         }
 
         // Boulders
         function createBoulder(x, z) {
-            const boulderGeometry = new THREE.SphereGeometry(1); // Doubled size
+            const boulderGeometry = new THREE.SphereGeometry(1);
             const boulderMaterial = new THREE.MeshBasicMaterial({ color: 0x808080 });
             const boulder = new THREE.Mesh(boulderGeometry, boulderMaterial);
-            boulder.position.set(x, 0.5, z); // Adjusted position to match size
-            boulder.userData = { barrier: true };
+            boulder.position.set(x, 0.5, z);
+            boulder.userData = { barrier: true, hitBox: new THREE.Sphere(boulder.position, 1) }; // Add hitBox
+            collisionObjects.push(boulder); // Add to collision objects
             scene.add(boulder);
-
-            // Add boulder to collision objects
-            boulder.userData.hitBox = new THREE.Sphere(boulder.position, 1); // Doubled hitbox size
-            collisionObjects.push(boulder);
+            return boulder;
         }
 
         // Create 19 boulders at random positions with a buffer zone of 5 units within the 3x3 grid
-        for (let i = 0; i < 19 * 9; i++) { // 19 boulders per grid cell, 9 grid cells
-            createBoulder(getRandomPosition(150, 5), getRandomPosition(150, 5)); // Adjusted offset
+        const boulders = []; // Keep track of the boulders
+        for (let i = 0; i < 19 * 9; i++) {
+            const boulder = createBoulder(getRandomPosition(150, 5), getRandomPosition(150, 5));
+            boulders.push(boulder);
         }
 
         // Tank
@@ -109,24 +111,26 @@
         const turretGeometry = new THREE.BoxGeometry(0.5, 0.25, 1);
         const turretMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
         const turret = new THREE.Mesh(turretGeometry, turretMaterial);
-        turret.position.set(0, 0.38, 0); // Adjusted y position
+        turret.position.set(0, 0.38, 0);
         tank.add(turret);
 
         // Barrel
-        const barrelGeometry = new THREE.CylinderGeometry(0.056, 0.056, 2.52); // Barrel geometry (20% skinnier and 10% shorter)
+        const barrelGeometry = new THREE.CylinderGeometry(0.056, 0.056, 2.52, 32);
         const barrelMaterial = new THREE.MeshBasicMaterial({ color: 0x333333 });
         const barrel = new THREE.Mesh(barrelGeometry, barrelMaterial);
-        barrel.position.set(0, 0, -1.26); // Positioning at the front of the turret
-        barrel.rotation.x = Math.PI / 2; // Rotate to align with turret
+        barrel.position.set(0, 0, -1.26);
+        barrel.rotation.x = Math.PI / 2;
+        barrel.rotation.z = Math.PI;
         turret.add(barrel);
 
         // Crosshair
-        const crosshairGeometry = new THREE.RingGeometry(0.15, 0.25, 32); // Increased size
-        const crosshairMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000 });
+        const crosshairGeometry = new THREE.RingGeometry(0.15, 0.25, 32);
+        const crosshairMaterial = new THREE.MeshBasicMaterial({ color: 0xff0000, depthTest: false });
         const crosshair = new THREE.Mesh(crosshairGeometry, crosshairMaterial);
-        
+        crosshair.position.z = -5;
+
         // Add red lines to the crosshair
-        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000 });
+        const lineMaterial = new THREE.LineBasicMaterial({ color: 0xff0000, depthTest: false });
         const lineGeometry1 = new THREE.BufferGeometry().setFromPoints([
             new THREE.Vector3(-0.25, 0, 0),
             new THREE.Vector3(0.25, 0, 0)
@@ -154,20 +158,31 @@
             a: false,
             d: false,
             c: false,
-            q: false, // Added q key
-            e: false  // Added e key
+            q: false,
+            e: false,
+            space: false,
+            shift: false // Add shift key
         };
 
         let isZoomed = false;
         let cameraOffset = { yaw: 0, pitch: 0 };
-        let zoomLevel = 1; // Initial zoom level
+        let zoomLevel = 1;
+        let projectiles = [];
+        let canShoot = true;
+        let reloadTime = 6500;
+        let crosshairWorldPosition = new THREE.Vector3(); // Store the world position of the crosshair
+        let explosions = []; // Array to store explosion particles
 
         document.addEventListener('keydown', (event) => {
             if (event.key.toLowerCase() in keys) {
                 keys[event.key.toLowerCase()] = true;
             }
             if (event.key === 'Shift') {
-                isZoomed = !isZoomed; // Toggle zoom state
+                keys.shift = true; // Track shift key
+                isZoomed = !isZoomed;
+            }
+            if (event.key === ' ') {
+                keys.space = true;
             }
         });
 
@@ -175,10 +190,15 @@
             if (event.key.toLowerCase() in keys) {
                 keys[event.key.toLowerCase()] = false;
                 if (event.key.toLowerCase() === 'c') {
-                    // Reset camera and crosshair when "c" key is released
                     yaw = cameraOffset.yaw;
                     pitch = cameraOffset.pitch;
                 }
+            }
+            if (event.key === ' ') {
+                keys.space = false;
+            }
+            if (event.key === 'Shift') {
+                keys.shift = false;
             }
         });
 
@@ -194,22 +214,20 @@
         let turretYaw = 0;
         let isTurretMoving = false;
 
-        const maxTurretRotationSpeed = THREE.Math.degToRad(40); // 40 degrees per second
+        const maxTurretRotationSpeed = THREE.Math.degToRad(40);
 
         document.addEventListener('mousemove', (event) => {
-            // Check if the pointer is locked to the renderer element
             if (document.pointerLockElement === renderer.domElement) {
                 const movementX = event.movementX || 0;
                 const movementY = event.movementY || 0;
 
-                // Allow camera movement even if 'c' is pressed
                 yaw -= movementX * 0.002;
                 pitch += movementY * 0.002;
 
                 pitch = Math.max(-Math.PI / 2, Math.min(Math.PI / 2, pitch));
 
                 if (!keys.c) {
-                    turretYaw -= movementX * 0.002; // Adjust turret rotation based on mouse movement
+                    turretYaw -= movementX * 0.002;
                     isTurretMoving = true;
                 }
             }
@@ -219,11 +237,11 @@
 
         let tankSpeed = 0;
         const maxSpeedForward = 0.2;
-        const maxSpeedBackward = 0.1; // Half the max speed of moving forward
-        const accelerationForward = maxSpeedForward / 4 / 60; // 4 seconds to reach max speed at 60fps
-        const accelerationBackward = maxSpeedBackward / 2 / 60; // 2 seconds to reach max speed at 60fps
-        const decelerationForward = maxSpeedForward / 2 / 60; // 2 seconds to stop from max speed at 60fps
-        const decelerationBackward = maxSpeedBackward / 1 / 60; // 1 second to stop from max speed at 60fps
+        const maxSpeedBackward = 0.1;
+        const accelerationForward = maxSpeedForward / 4 / 60;
+        const accelerationBackward = maxSpeedBackward / 2 / 60;
+        const decelerationForward = maxSpeedForward / 2 / 60;
+        const decelerationBackward = maxSpeedBackward / 1 / 60;
 
         let previousTime = performance.now();
 
@@ -256,9 +274,8 @@
                 tank.rotation.y -= turnSpeed;
             }
 
-            // Update turret rotation relative to the tank
             const now = performance.now();
-            const deltaTime = (now - previousTime) / 1000; // in seconds
+            const deltaTime = (now - previousTime) / 1000;
             previousTime = now;
 
             if (!keys.c || isTurretMoving) {
@@ -268,7 +285,6 @@
                 turret.rotation.y += turretRotationDifference;
             }
 
-            // Ensure turret keeps moving towards the crosshair when "c" is pressed
             if (keys.c && isTurretMoving) {
                 const desiredTurretYaw = turretYaw - tank.rotation.y;
                 const maxRotationThisFrame = maxTurretRotationSpeed * deltaTime;
@@ -276,20 +292,17 @@
                 turret.rotation.y += turretRotationDifference;
             }
 
-            // Check for collisions
             for (let i = 0; i < collisionObjects.length; i++) {
                 const obj = collisionObjects[i];
                 const distance = tank.position.distanceTo(obj.position);
                 let hit = false;
 
                 if (obj.geometry instanceof THREE.CylinderGeometry) {
-                    // Check collision with tree hitbox (slightly larger than the trunk)
                     const treeHitBox = new THREE.Box3().setFromObject(obj);
-                    treeHitBox.expandByScalar(0.1); // Slightly larger hitbox
+                    treeHitBox.expandByScalar(0.1);
                     hit = treeHitBox.containsPoint(tank.position);
                 } else if (obj.geometry instanceof THREE.SphereGeometry) {
-                    // Check collision with boulder hitbox
-                    const boulderHitBox = new THREE.Sphere(obj.position, 2); // Doubled hitbox size
+                    const boulderHitBox = new THREE.Sphere(obj.position, 2);
                     hit = boulderHitBox.containsPoint(tank.position);
                 }
 
@@ -304,7 +317,7 @@
                         fallenTrees.push(obj);
                         setTimeout(() => {
                             obj.userData.barrier = false;
-                        }, 3000); // Remove barrier after 3 seconds
+                        }, 3000);
                     } else if (obj.userData.barrier) {
                         tank.position.copy(previousPosition);
                         tankSpeed = 0;
@@ -313,18 +326,15 @@
                 }
             }
 
-            // Update camera position to constantly be behind the tank
-            const relativeCameraOffset = new THREE.Vector3(0, 3, -5).multiplyScalar(zoomLevel); // Adjusted for zoom level
+            const relativeCameraOffset = new THREE.Vector3(0, 3, -5).multiplyScalar(zoomLevel);
             const cameraOffsetPosition = relativeCameraOffset.applyMatrix4(tank.matrixWorld);
 
             if (isZoomed) {
-                // Zoom the camera directly above the tank, a bit higher than before
                 camera.position.set(tank.position.x, tank.position.y + 1.5, tank.position.z);
-                camera.lookAt(crosshair.position); // Make the camera look at the crosshair
+                camera.lookAt(crosshair.position);
             } else {
                 camera.position.lerp(cameraOffsetPosition, 0.1);
 
-                // Apply yaw and pitch to camera position
                 const offsetX = 5 * Math.sin(yaw) * Math.cos(pitch);
                 const offsetY = 5 * Math.sin(pitch);
                 const offsetZ = 5 * Math.cos(yaw) * Math.cos(pitch);
@@ -334,21 +344,16 @@
                     tank.position.y + 3 + offsetY,
                     tank.position.z + offsetZ
                 );
-
                 camera.lookAt(tank.position);
             }
 
-            // Prevent the camera from going below the ground level
             if (camera.position.y < 0.1) {
                 camera.position.y = 0.1;
             }
 
-            // Update crosshair position
             if (!keys.c) {
-                // Save camera offset when "c" key is pressed
                 cameraOffset = { yaw, pitch };
 
-                // Calculate crosshair position to be on the opposite side of the tank from the camera
                 const crosshairOffsetX = -5 * Math.sin(yaw) * Math.cos(pitch);
                 const crosshairOffsetY = -5 * Math.sin(pitch);
                 const crosshairOffsetZ = -5 * Math.cos(yaw) * Math.cos(pitch);
@@ -360,24 +365,42 @@
                 );
 
                 crosshair.lookAt(tank.position);
+                if (keys.shift) {
+                    crosshairWorldPosition.setFromMatrixPosition(crosshair.matrixWorld);
+                }
+            } else if (keys.shift) {
+                // Keep crosshair at the stored world position
+                crosshair.position.setFromMatrixPosition(camera.matrixWorld);
+                crosshair.position.add(crosshairWorldPosition);
+                crosshair.lookAt(tank.position);
             }
 
-            // Adjust zoom level with "q" and "e" keys (smooth zooming effect)
             if (keys.q) {
-                zoomLevel = Math.max(zoomLevel - 0.05, 0.2); // Zoom in up to 5x
-                camera.fov = 75 / zoomLevel; // Adjust field of view
+                zoomLevel = Math.max(zoomLevel - 0.05, 0.2);
+                camera.fov = 75 / zoomLevel;
                 camera.updateProjectionMatrix();
-            } 
+            }
             if (keys.e) {
-                zoomLevel = Math.min(zoomLevel + 0.05, 1); // Zoom out back to normal
-                camera.fov = 75 / zoomLevel; // Adjust field of view
+                zoomLevel = Math.min(zoomLevel + 0.05, 1);
+                camera.fov = 75 / zoomLevel;
                 camera.updateProjectionMatrix();
+            }
+
+            if (keys.space) {
+                if (canShoot) {
+                    shootProjectile();
+                    canShoot = false;
+                    setTimeout(() => {
+                        canShoot = true;
+                    }, reloadTime);
+                    keys.space = false;
+                }
             }
         }
 
         function updateTrees() {
             const fallSpeed = 0.01;
-            const maxRotation = Math.PI / 2 - THREE.Math.degToRad(4); // 86 degrees
+            const maxRotation = Math.PI / 2 - THREE.Math.degToRad(4);
 
             for (let i = fallenTrees.length - 1; i >= 0; i--) {
                 const tree = fallenTrees[i];
@@ -390,7 +413,7 @@
                     tree.position.z += fallSpeed * Math.sin(tree.userData.fallDirection);
                 }
 
-                const fallDuration = 20 * 1000; // 20 seconds
+                const fallDuration = 20 * 1000;
                 if (timeFallen > fallDuration) {
                     scene.remove(tree);
                     fallenTrees.splice(i, 1);
@@ -398,15 +421,145 @@
             }
         }
 
-        // Render loop
+        function updateProjectiles() {
+            const projectileSpeed = 1.1;
+            for (let i = projectiles.length - 1; i >= 0; i--) {
+                const projectile = projectiles[i];
+                projectile.position.addScaledVector(projectile.velocity, projectileSpeed);
+
+                // Check for collision with trees
+                for (let j = 0; j < trees.length; j++) {
+                    const tree = trees[j];
+                    if (tree.userData.hitBox.containsPoint(projectile.position)) {
+                        if (!tree.userData.fallen) {
+                            tree.userData.fallen = true;
+                            tree.userData.fallStartTime = Date.now();
+                            tree.userData.fallDirection = Math.atan2(
+                                tree.position.z - tank.position.z,
+                                tree.position.x - tank.position.x
+                            );
+                            fallenTrees.push(tree);
+                            setTimeout(() => {
+                                tree.userData.barrier = false;
+                            }, 3000);
+                        }
+                        // Remove the following lines to allow projectile to pass through trees
+                        // scene.remove(projectile);
+                        // projectiles.splice(i, 1);
+                        // return; // Important: Stop checking projectiles after a hit
+                    }
+                }
+
+                // Check for collision with boulders
+                for (let j = 0; j < boulders.length; j++) {
+                    const boulder = boulders[j];
+                    if (boulder.userData.hitBox.containsPoint(projectile.position)) {
+                        // Create explosion
+                        createExplosion(projectile.position.x, projectile.position.y, projectile.position.z);
+
+                        scene.remove(projectile);
+                        projectiles.splice(i, 1);
+                        return; // Important: Stop checking projectiles after a hit
+                    }
+                }
+
+                if (Math.abs(projectile.position.x) > 100 || Math.abs(projectile.position.z) > 100 || projectile.position.y < 0) {
+                    scene.remove(projectile);
+                    projectiles.splice(i, 1);
+                }
+            }
+        }
+
+        function createExplosion(x, y, z) {
+            const particleCount = 50 * 5; // 5 times more particles
+            const particles = new THREE.Group();
+            for (let i = 0; i < particleCount; i++) {
+                const particleGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+                const particleMaterial = new THREE.MeshBasicMaterial({ color: 0xffa500 }); // Orange
+                const particle = new THREE.Mesh(particleGeometry, particleMaterial);
+
+                const velocity = new THREE.Vector3(
+                    (Math.random() - 0.5) * 0.2, // Reduced velocity spread
+                    (Math.random() - 0.5) * 0.2,
+                    (Math.random() - 0.5) * 0.2
+                );
+                particle.velocity = velocity;
+                particle.position.set(x, y, z);
+                particles.add(particle);
+            }
+            scene.add(particles);
+            explosions.push({ particles, time: Date.now(), origin: new THREE.Vector3(x, y, z) }); // Store the origin
+        }
+
+        function updateExplosions() {
+            const explosionDuration = 1000; // 1 second
+            const maxParticleDistance = 1 / 3; // Max distance for particles from origin - changed to 1/3
+
+            for (let i = explosions.length - 1; i >= 0; i--) {
+                const explosion = explosions[i];
+                const particles = explosion.particles;
+                const timeElapsed = Date.now() - explosion.time;
+                const origin = explosion.origin; // Get the origin of the explosion
+
+                if (timeElapsed > explosionDuration) {
+                    scene.remove(particles);
+                    explosions.splice(i, 1);
+                    continue;
+                }
+
+                particles.children.forEach(particle => {
+                    particle.position.add(particle.velocity);
+
+                    // Calculate distance from the origin
+                    const distance = origin.distanceTo(particle.position);
+                    if (distance > maxParticleDistance) {
+                        // If a particle is too far, move it back towards the origin
+                        const direction = new THREE.Vector3();
+                        direction.subVectors(origin, particle.position).normalize();
+                        particle.position.addScaledVector(direction, 0.1); // Adjust 0.1 to control how strongly it's pulled back - reduced to 0.1
+                    }
+                });
+            }
+        }
+
+        function shootProjectile() {
+            const projectileGeometry = new THREE.SphereGeometry(0.1, 8, 8);
+            const projectileMaterial = new THREE.MeshBasicMaterial({ color: 0xffd700 });
+            const projectile = new THREE.Mesh(projectileGeometry, projectileMaterial);
+
+            const barrelEnd = new THREE.Vector3();
+            barrel.getWorldPosition(barrelEnd);
+            projectile.position.copy(barrelEnd);
+
+            const direction = new THREE.Vector3();
+            barrel.getWorldDirection(direction);
+
+            // Set the y component of the direction to 0 to make it parallel to xz plane
+            direction.y = 0;
+            direction.normalize(); // Important:  Normalize the direction vector after changing it.
+
+            projectile.velocity = direction.clone().negate();
+            projectiles.push(projectile);
+            scene.add(projectile);
+            return projectile;
+        }
+
         function animate() {
             requestAnimationFrame(animate);
             updateTank();
             updateTrees();
+            updateProjectiles();
+            updateExplosions(); // Update explosions
             renderer.render(scene, camera);
         }
 
         animate();
+
+        window.addEventListener('resize', () => {
+            camera.aspect = window.innerWidth / window.innerHeight;
+            camera.updateProjectionMatrix();
+            renderer.setSize(window.innerWidth, window.innerHeight);
+        });
     </script>
 </body>
 </html>
